@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ImageUploadTask.Models
 {
@@ -28,6 +27,9 @@ namespace ImageUploadTask.Models
         
         [MaxLength(500)]
         public string? Description { get; set; }
+        
+        // Base64-encoded image data
+        public string? Base64Data { get; set; }
         
         // Navigation property
         public virtual Customer Customer { get; set; } = null!;

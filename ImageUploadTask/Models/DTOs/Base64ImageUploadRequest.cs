@@ -1,15 +1,21 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ImageUploadTask.Models.DTOs
 {
-    public class ImageResponse
+    public class Base64ImageUploadRequest
     {
-        public int Id { get; set; }
+        [Required]
         public int CustomerId { get; set; }
+        
+        [Required]
+        public string Base64Data { get; set; } = string.Empty;
+        
+        [Required]
         public string FileName { get; set; } = string.Empty;
+        
+        [Required]
         public string ContentType { get; set; } = string.Empty;
-        public long FileSizeBytes { get; set; }
-        public DateTime UploadedAt { get; set; }
+        
         public string? Description { get; set; }
-        public string? Base64Data { get; set; }
-        public string FileUrl { get; set; } = string.Empty;
     }
 }

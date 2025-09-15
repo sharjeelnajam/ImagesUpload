@@ -71,6 +71,9 @@ namespace ImageUploadTask.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Base64Data")
+                        .HasColumnType("NVARCHAR(MAX)");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)

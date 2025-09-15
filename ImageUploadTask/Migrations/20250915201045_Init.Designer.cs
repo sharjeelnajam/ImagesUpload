@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ImageUploadTask.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250915184810_Init")]
+    [Migration("20250915201045_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -73,6 +73,9 @@ namespace ImageUploadTask.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Base64Data")
+                        .HasColumnType("NVARCHAR(MAX)");
 
                     b.Property<string>("ContentType")
                         .IsRequired()

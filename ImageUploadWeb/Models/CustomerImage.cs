@@ -1,6 +1,6 @@
-namespace ImageUploadTask.Models.DTOs
+namespace ImageUploadWeb.Models
 {
-    public class ImageResponse
+    public class CustomerImage
     {
         public int Id { get; set; }
         public int CustomerId { get; set; }

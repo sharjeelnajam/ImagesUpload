@@ -1,0 +1,636 @@
+@page "/customers"
+@using ImageUploadWeb.Models
+@using ImageUploadWeb.Services
+@inject ICustomerService CustomerService
+@inject NavigationManager Navigation
+@inject ILogger<Customers> Logger
+
+<PageTitle>Customers</PageTitle>
+
+<div class="customers-page">
+    <div class="page-header">
+        <h1>Customer Management</h1>
+        <div class="header-actions">
+            <button class="btn btn-secondary" @onclick="RefreshCustomers">
+                🔄 Refresh
+            </button>
+            <button class="btn btn-primary" @onclick="CreateNewCustomer">
+                ➕ Add New Customer
+            </button>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading customers...</p>
+        </div>
+    }
+    else if (CustomersList.Any())
+    {
+        <div class="customers-grid">
+            @foreach (var customer in CustomersList)
+            {
+                <div class="customer-card" @onclick="() => ViewCustomer(customer.Id)">
+                    <div class="customer-avatar">
+                        @if (customer.Images.Any())
+                        {
+                            <img src="@GetCustomerAvatar(customer)" alt="Avatar" class="avatar-image" />
+                        }
+                        else
+                        {
+                            <div class="avatar-placeholder">
+                                @GetInitials(customer.FirstName, customer.LastName)
+                            </div>
+                        }
+                    </div>
+                    
+                    <div class="customer-info">
+                        <h3>@customer.FirstName @customer.LastName</h3>
+                        @if (!string.IsNullOrEmpty(customer.Email))
+                        {
+                            <p class="customer-email">📧 @customer.Email</p>
+                        }
+                        @if (!string.IsNullOrEmpty(customer.Phone))
+                        {
+                            <p class="customer-phone">📞 @customer.Phone</p>
+                        }
+                        <p class="customer-date">Created: @customer.CreatedAt.ToString("MMM dd, yyyy")</p>
+                    </div>
+                    
+                    <div class="customer-stats">
+                        <div class="image-count">
+                            <span class="count-number">@customer.Images.Count</span>
+                            <span class="count-label">images</span>
+                        </div>
+                        @if (customer.Images.Count >= 10)
+                        {
+                            <div class="limit-warning">⚠️ Limit reached</div>
+                        }
+                    </div>
+                    
+                    <div class="customer-actions">
+                        <button class="btn btn-sm btn-outline-primary" 
+                                @onclick="() => ViewCustomer(customer.Id)" 
+                                @onclick:stopPropagation="true">
+                            👁️ View
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" 
+                                @onclick="() => DeleteCustomer(customer.Id)" 
+                                @onclick:stopPropagation="true">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="no-customers">
+            <div class="no-customers-icon">👥</div>
+            <h3>No customers found</h3>
+            <p>Get started by adding your first customer</p>
+            <button class="btn btn-primary" @onclick="CreateNewCustomer">
+                ➕ Add New Customer
+            </button>
+        </div>
+    }
+</div>
+
+<!-- Create Customer Modal -->
+@if (ShowCreateModal)
+{
+    <div class="modal-overlay" @onclick="CloseCreateModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h4>Add New Customer</h4>
+                <button class="modal-close" @onclick="CloseCreateModal">×</button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="@NewCustomer" OnValidSubmit="SaveNewCustomer">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="form-group">
+                        <label for="newFirstName">First Name *</label>
+                        <InputText id="newFirstName" @bind-Value="NewCustomer.FirstName" class="form-control" />
+                        <ValidationMessage For="@(() => NewCustomer.FirstName)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newLastName">Last Name *</label>
+                        <InputText id="newLastName" @bind-Value="NewCustomer.LastName" class="form-control" />
+                        <ValidationMessage For="@(() => NewCustomer.LastName)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newEmail">Email</label>
+                        <InputText id="newEmail" @bind-Value="NewCustomer.Email" class="form-control" />
+                        <ValidationMessage For="@(() => NewCustomer.Email)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newPhone">Phone</label>
+                        <InputText id="newPhone" @bind-Value="NewCustomer.Phone" class="form-control" />
+                        <ValidationMessage For="@(() => NewCustomer.Phone)" />
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" disabled="@IsCreating">
+                            @(IsCreating ? "Creating..." : "Create Customer")
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="CloseCreateModal">
+                            Cancel
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .customers-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        color: #333;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        text-align: center;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .customers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .customer-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+    }
+
+    .customer-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-color: #007bff;
+    }
+
+    .customer-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        background: #007bff;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+
+    .customer-info h3 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 1.2em;
+    }
+
+    .customer-info p {
+        margin: 5px 0;
+        color: #666;
+        font-size: 0.9em;
+    }
+
+    .customer-stats {
+        margin: 15px 0;
+        text-align: center;
+    }
+
+    .image-count {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .count-number {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .count-label {
+        font-size: 0.8em;
+        color: #666;
+        text-transform: uppercase;
+    }
+
+    .limit-warning {
+        color: #dc3545;
+        font-size: 0.8em;
+        font-weight: bold;
+        margin-top: 5px;
+    }
+
+    .customer-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 15px;
+    }
+
+    .no-customers {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+
+    .no-customers-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+        display: block;
+    }
+
+    .no-customers h3 {
+        margin: 10px 0;
+        color: #333;
+    }
+
+    .no-customers p {
+        margin: 10px 0 20px 0;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 8px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .modal-header h4 {
+        margin: 0;
+        color: #333;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        color: #333;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background-color: #0056b3;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #545b62;
+    }
+
+    .btn-outline-primary {
+        background-color: transparent;
+        color: #007bff;
+        border: 1px solid #007bff;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-outline-danger {
+        background-color: transparent;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+    }
+
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .validation-message {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .customers-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header {
+            flex-direction: column;
+            gap: 15px;
+            align-items: stretch;
+        }
+
+        .customer-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+
+@code {
+    private List<Customer> CustomersList = new();
+    private bool IsLoading = true;
+    private bool ShowCreateModal = false;
+    private bool IsCreating = false;
+    private Customer NewCustomer = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Refresh data when page first renders
+            await LoadCustomers();
+        }
+    }
+
+    private async Task LoadCustomers()
+    {
+        try
+        {
+            IsLoading = true;
+            var response = await CustomerService.GetCustomersAsync();
+            
+            if (response.Success && response.Data != null)
+            {
+                CustomersList = response.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading customers");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task RefreshCustomers()
+    {
+        await LoadCustomers();
+    }
+
+    private void ViewCustomer(int customerId)
+    {
+        Navigation.NavigateTo($"/customer/{customerId}");
+    }
+
+    private void CreateNewCustomer()
+    {
+        NewCustomer = new Customer();
+        ShowCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        ShowCreateModal = false;
+        NewCustomer = new Customer();
+    }
+
+    private async Task SaveNewCustomer()
+    {
+        try
+        {
+            IsCreating = true;
+            
+            var response = await CustomerService.CreateCustomerAsync(NewCustomer);
+            
+            if (response.Success && response.Data != null)
+            {
+                CustomersList.Add(response.Data);
+                ShowCreateModal = false;
+                NewCustomer = new Customer();
+                StateHasChanged();
+            }
+            else
+            {
+                Logger.LogError("Failed to create customer: {Message}", response.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error creating customer");
+        }
+        finally
+        {
+            IsCreating = false;
+        }
+    }
+
+    private async Task DeleteCustomer(int customerId)
+    {
+        try
+        {
+            var response = await CustomerService.DeleteCustomerAsync(customerId);
+            
+            if (response.Success)
+            {
+                var customerToRemove = CustomersList.FirstOrDefault(c => c.Id == customerId);
+                if (customerToRemove != null)
+                {
+                    CustomersList.Remove(customerToRemove);
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                Logger.LogError("Failed to delete customer: {Message}", response.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting customer {CustomerId}", customerId);
+        }
+    }
+
+    private string GetCustomerAvatar(Customer customer)
+    {
+        var firstImage = customer.Images.FirstOrDefault();
+        if (firstImage != null && !string.IsNullOrEmpty(firstImage.Base64Data))
+        {
+            return $"data:{firstImage.ContentType};base64,{firstImage.Base64Data}";
+        }
+        return string.Empty;
+    }
+
+    private string GetInitials(string firstName, string lastName)
+    {
+        return $"{firstName.FirstOrDefault()}{lastName.FirstOrDefault()}".ToUpper();
+    }
+}

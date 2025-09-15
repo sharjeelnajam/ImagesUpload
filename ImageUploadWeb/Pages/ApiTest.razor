@@ -1,0 +1,177 @@
+@page "/api-test"
+@using ImageUploadWeb.Models
+@using ImageUploadWeb.Services
+@inject IImageService ImageService
+@inject ICustomerService CustomerService
+@inject ILogger<ApiTest> Logger
+
+<h3>API Connection Test</h3>
+
+<div class="test-container">
+    <div class="test-section">
+        <h4>1. Test API Connection</h4>
+        <button @onclick="TestConnection" class="btn btn-primary">Test Connection</button>
+        <p><strong>Result:</strong> @ConnectionResult</p>
+    </div>
+
+    <div class="test-section">
+        <h4>2. Test Customer API</h4>
+        <button @onclick="TestCustomerApi" class="btn btn-info">Test Customer API</button>
+        <p><strong>Result:</strong> @CustomerResult</p>
+    </div>
+
+    <div class="test-section">
+        <h4>3. Create Test Customer</h4>
+        <button @onclick="CreateTestCustomer" class="btn btn-success">Create Test Customer</button>
+        <p><strong>Result:</strong> @CreateResult</p>
+    </div>
+
+    <div class="test-section">
+        <h4>4. List All Customers</h4>
+        <button @onclick="ListCustomers" class="btn btn-warning">List Customers</button>
+        <p><strong>Result:</strong> @ListResult</p>
+        @if (Customers.Any())
+        {
+            <ul>
+                @foreach (var customer in Customers)
+                {
+                    <li>ID: @customer.Id - @customer.FirstName @customer.LastName (@customer.Email)</li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+<style>
+    .test-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+
+    .test-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+
+    .test-section h4 {
+        margin-top: 0;
+        color: #333;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        margin: 5px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .btn-primary { background-color: #007bff; color: white; }
+    .btn-info { background-color: #17a2b8; color: white; }
+    .btn-success { background-color: #28a745; color: white; }
+    .btn-warning { background-color: #ffc107; color: black; }
+</style>
+
+@code {
+    private string ConnectionResult = "Not tested";
+    private string CustomerResult = "Not tested";
+    private string CreateResult = "Not tested";
+    private string ListResult = "Not tested";
+    private List<Customer> Customers = new();
+
+    private async Task TestConnection()
+    {
+        try
+        {
+            ConnectionResult = "Testing...";
+            StateHasChanged();
+
+            // Try a simple GET request to see if API is reachable
+            var response = await ImageService.GetImageCountAsync(1);
+            ConnectionResult = $"API is reachable! Response: Success={response.Success}, Message={response.Message}";
+        }
+        catch (Exception ex)
+        {
+            ConnectionResult = $"API Error: {ex.Message}";
+            Logger.LogError(ex, "API Connection test failed");
+        }
+    }
+
+    private async Task TestCustomerApi()
+    {
+        try
+        {
+            CustomerResult = "Testing...";
+            StateHasChanged();
+
+            var response = await CustomerService.GetCustomersAsync();
+            CustomerResult = $"Customer API Response: Success={response.Success}, Message={response.Message}";
+        }
+        catch (Exception ex)
+        {
+            CustomerResult = $"Customer API Error: {ex.Message}";
+            Logger.LogError(ex, "Customer API test failed");
+        }
+    }
+
+    private async Task CreateTestCustomer()
+    {
+        try
+        {
+            CreateResult = "Creating...";
+            StateHasChanged();
+
+            var customer = new Customer
+            {
+                FirstName = "Test",
+                LastName = "Customer",
+                Email = "test@example.com",
+                Phone = "123-456-7890"
+            };
+
+            var response = await CustomerService.CreateCustomerAsync(customer);
+            if (response.Success)
+            {
+                CreateResult = $"Customer created successfully! ID: {response.Data?.Id}";
+            }
+            else
+            {
+                CreateResult = $"Failed to create customer: {response.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            CreateResult = $"Error creating customer: {ex.Message}";
+            Logger.LogError(ex, "Create customer test failed");
+        }
+    }
+
+    private async Task ListCustomers()
+    {
+        try
+        {
+            ListResult = "Loading...";
+            StateHasChanged();
+
+            var response = await CustomerService.GetCustomersAsync();
+            if (response.Success && response.Data != null)
+            {
+                Customers = response.Data;
+                ListResult = $"Found {Customers.Count} customers";
+            }
+            else
+            {
+                ListResult = $"Failed to load customers: {response.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ListResult = $"Error loading customers: {ex.Message}";
+            Logger.LogError(ex, "List customers test failed");
+        }
+    }
+}

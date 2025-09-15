@@ -1,0 +1,294 @@
+@using ImageUploadWeb.Models
+@using ImageUploadWeb.Services
+@inject IImageService ImageService
+@inject ILogger<ImageUpload> Logger
+
+<div class="simple-upload-container">
+    <h4>Upload Images</h4>
+    
+    <div class="upload-section">
+        <InputFile OnChange="HandleFileSelected" 
+                   multiple 
+                   accept="image/*" 
+                   class="file-input" />
+        
+        <div class="upload-info">
+            <p>Select multiple images (JPEG, PNG, GIF, WebP)</p>
+            <p>Maximum 5MB per file, 10 images total</p>
+            <p>Current: @ImageCount / 10 images</p>
+        </div>
+    </div>
+
+    @if (IsUploading)
+    {
+        <div class="upload-status">
+            <p>Uploading... @UploadProgress%</p>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: @(UploadProgress)%"></div>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="error-message">
+            @ErrorMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="success-message">
+            @SuccessMessage
+        </div>
+    }
+</div>
+
+<style>
+    .simple-upload-container {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+    }
+
+    .simple-upload-container h4 {
+        margin: 0 0 15px 0;
+        color: #333;
+    }
+
+    .upload-section {
+        margin-bottom: 15px;
+    }
+
+    .file-input {
+        width: 100%;
+        padding: 10px;
+        border: 2px dashed #007bff;
+        border-radius: 5px;
+        background-color: white;
+        cursor: pointer;
+    }
+
+    .file-input:hover {
+        border-color: #0056b3;
+        background-color: #f0f8ff;
+    }
+
+    .upload-info {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #666;
+    }
+
+    .upload-info p {
+        margin: 5px 0;
+    }
+
+    .upload-status {
+        margin: 15px 0;
+        padding: 10px;
+        background-color: #e3f2fd;
+        border-radius: 5px;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 10px;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background-color: #007bff;
+        transition: width 0.3s ease;
+    }
+
+    .error-message {
+        margin: 15px 0;
+        padding: 10px;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        border-radius: 5px;
+    }
+
+    .success-message {
+        margin: 15px 0;
+        padding: 10px;
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+        border-radius: 5px;
+    }
+</style>
+
+@code {
+    [Parameter] public int CustomerId { get; set; }
+    [Parameter] public EventCallback<List<CustomerImage>> OnImagesUploaded { get; set; }
+    [Parameter] public EventCallback<int> OnImageCountChanged { get; set; }
+
+    private bool IsUploading = false;
+    private int UploadProgress = 0;
+    private string ErrorMessage = string.Empty;
+    private string SuccessMessage = string.Empty;
+    private int ImageCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadImageCount();
+    }
+
+    private async Task LoadImageCount()
+    {
+        try
+        {
+            var countResponse = await ImageService.GetImageCountAsync(CustomerId);
+            if (countResponse.Success && countResponse.Data != null)
+            {
+                var countData = countResponse.Data;
+                var countProperty = countData.GetType().GetProperty("CurrentCount");
+                if (countProperty != null)
+                {
+                    ImageCount = (int)countProperty.GetValue(countData)!;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading image count for customer {CustomerId}", CustomerId);
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        if (IsUploading || ImageCount >= 10)
+        {
+            ErrorMessage = "Cannot upload more images. Maximum limit reached.";
+            return;
+        }
+
+        try
+        {
+            var files = e.GetMultipleFiles();
+            
+            if (files == null || !files.Any())
+            {
+                ErrorMessage = "No files selected.";
+                return;
+            }
+
+            await ProcessFiles(files.ToArray());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error in HandleFileSelected");
+            ErrorMessage = "Error selecting files: " + ex.Message;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcessFiles(IBrowserFile[] files)
+    {
+        if (files == null || files.Length == 0)
+            return;
+
+        var remainingSlots = 10 - ImageCount;
+        var filesToProcess = files.Take(remainingSlots).ToArray();
+
+        if (filesToProcess.Length == 0)
+        {
+            ErrorMessage = "Cannot upload more images. Maximum limit of 10 images reached.";
+            return;
+        }
+
+        IsUploading = true;
+        UploadProgress = 0;
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+        StateHasChanged();
+
+        var uploadedImages = new List<CustomerImage>();
+        var totalFiles = filesToProcess.Length;
+
+        for (int i = 0; i < filesToProcess.Length; i++)
+        {
+            try
+            {
+                var file = filesToProcess[i];
+                
+                // Validate file type
+                if (!IsValidImageType(file.ContentType))
+                {
+                    ErrorMessage += $"Invalid file type: {file.Name}. ";
+                    continue;
+                }
+
+                // Validate file size (5MB limit)
+                if (file.Size > 5 * 1024 * 1024)
+                {
+                    ErrorMessage += $"File too large: {file.Name}. ";
+                    continue;
+                }
+
+                // Convert to Base64
+                var base64Data = await ImageService.ConvertFileToBase64Async(file);
+
+                // Upload to API
+                var uploadRequest = new Base64ImageUploadRequest
+                {
+                    CustomerId = CustomerId,
+                    Base64Data = base64Data,
+                    FileName = file.Name,
+                    ContentType = file.ContentType,
+                    Description = $"Uploaded on {DateTime.Now:yyyy-MM-dd HH:mm}"
+                };
+
+                Logger.LogInformation("Uploading image for customer {CustomerId}, file: {FileName}, size: {Size} bytes", 
+                    CustomerId, file.Name, base64Data.Length);
+
+                var uploadResponse = await ImageService.UploadBase64ImageAsync(uploadRequest);
+
+                if (uploadResponse.Success && uploadResponse.Data != null)
+                {
+                    uploadedImages.Add(uploadResponse.Data);
+                    SuccessMessage = $"Successfully uploaded {uploadedImages.Count} image(s).";
+                }
+                else
+                {
+                    ErrorMessage += $"Failed to upload {file.Name}: {uploadResponse.Message}. ";
+                }
+
+                UploadProgress = (int)((i + 1) * 100.0 / totalFiles);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error processing file {FileName}", filesToProcess[i].Name);
+                ErrorMessage += $"Error processing {filesToProcess[i].Name}. ";
+            }
+        }
+
+        IsUploading = false;
+        UploadProgress = 100;
+
+        if (uploadedImages.Any())
+        {
+            await LoadImageCount();
+            await OnImagesUploaded.InvokeAsync(uploadedImages);
+            await OnImageCountChanged.InvokeAsync(ImageCount);
+        }
+
+        StateHasChanged();
+    }
+
+    private bool IsValidImageType(string contentType)
+    {
+        var validTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+        return validTypes.Contains(contentType.ToLower());
+    }
+}

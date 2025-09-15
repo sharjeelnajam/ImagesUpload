@@ -33,9 +33,10 @@ namespace ImageUploadTask.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
-                entity.Property(e => e.FilePath).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.FilePath).HasMaxLength(500); // Made optional since we're using Base64
                 entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.Base64Data).HasColumnType("NVARCHAR(MAX)"); // For large Base64 strings
                 entity.Property(e => e.UploadedAt).HasDefaultValueSql("GETUTCDATE()");
 
                 // Configure relationship

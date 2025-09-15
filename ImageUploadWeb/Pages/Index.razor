@@ -1,0 +1,374 @@
+﻿@page "/"
+@using ImageUploadWeb.Models
+@using ImageUploadWeb.Services
+@inject ICustomerService CustomerService
+@inject NavigationManager Navigation
+@inject ILogger<Index> Logger
+
+<PageTitle>Image Upload System</PageTitle>
+
+<div class="hero-section">
+    <div class="hero-content">
+        <h1>Image Upload System</h1>
+        <p class="hero-description">
+            Manage customer profiles with image galleries. Upload, view, and organize images 
+            with our intuitive drag-and-drop interface and responsive carousel display.
+        </p>
+        <div class="hero-actions">
+            <button class="btn btn-primary btn-lg" @onclick="NavigateToCustomers">
+                👥 Manage Customers
+            </button>
+            <button class="btn btn-outline-primary btn-lg" @onclick="NavigateToCustomers">
+                ➕ Add New Customer
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="features-section">
+    <div class="container">
+        <h2 class="section-title">Key Features</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📁</div>
+                <h3>Drag & Drop Upload</h3>
+                <p>Intuitive file upload with drag-and-drop support. Simply drag images onto the upload area or click to browse.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🖼️</div>
+                <h3>Image Gallery</h3>
+                <p>View images in both grid and carousel modes. Switch between views for the best viewing experience.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔢</div>
+                <h3>Image Limits</h3>
+                <p>Enforce a maximum of 10 images per customer with real-time count tracking and limit warnings.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🗑️</div>
+                <h3>Easy Management</h3>
+                <p>Delete images with a single click. Manage your image collection effortlessly.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Responsive Design</h3>
+                <p>Fully responsive interface that works perfectly on desktop, tablet, and mobile devices.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Base64 Storage</h3>
+                <p>Images stored as Base64 in the database for easy portability and backup management.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (RecentCustomers.Any())
+{
+    <div class="recent-customers-section">
+        <div class="container">
+            <h2 class="section-title">Recent Customers</h2>
+            <div class="customers-preview">
+                @foreach (var customer in RecentCustomers.Take(3))
+                {
+                    <div class="customer-preview-card" @onclick="() => NavigateToCustomer(customer.Id)">
+                        <div class="customer-avatar">
+                            @if (customer.Images.Any())
+                            {
+                                <img src="@GetCustomerAvatar(customer)" alt="Avatar" class="avatar-image" />
+                            }
+                            else
+                            {
+                                <div class="avatar-placeholder">
+                                    @GetInitials(customer.FirstName, customer.LastName)
+                                </div>
+                            }
+                        </div>
+                        <div class="customer-info">
+                            <h4>@customer.FirstName @customer.LastName</h4>
+                            <p>@customer.Images.Count images</p>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="text-center">
+                <button class="btn btn-outline-primary" @onclick="NavigateToCustomers">
+                    View All Customers
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 80px 20px;
+        text-align: center;
+    }
+
+    .hero-content {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .hero-content h1 {
+        font-size: 3em;
+        margin-bottom: 20px;
+        font-weight: bold;
+    }
+
+    .hero-description {
+        font-size: 1.2em;
+        margin-bottom: 40px;
+        opacity: 0.9;
+        line-height: 1.6;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .features-section {
+        padding: 80px 20px;
+        background: #f8f9fa;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .section-title {
+        text-align: center;
+        margin-bottom: 50px;
+        color: #333;
+        font-size: 2.5em;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+    }
+
+    .feature-card {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .feature-icon {
+        font-size: 3em;
+        margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+        margin-bottom: 15px;
+        color: #333;
+        font-size: 1.3em;
+    }
+
+    .feature-card p {
+        color: #666;
+        line-height: 1.6;
+    }
+
+    .recent-customers-section {
+        padding: 80px 20px;
+        background: white;
+    }
+
+    .customers-preview {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+    }
+
+    .customer-preview-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 200px;
+    }
+
+    .customer-preview-card:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+    }
+
+    .customer-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 0 auto 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        background: #007bff;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+
+    .customer-info h4 {
+        margin: 0 0 5px 0;
+        color: #333;
+    }
+
+    .customer-info p {
+        margin: 0;
+        color: #666;
+        font-size: 0.9em;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+        transform: translateY(-2px);
+    }
+
+    .btn-outline-primary {
+        background-color: transparent;
+        color: #007bff;
+        border: 2px solid #007bff;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #007bff;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-lg {
+        padding: 16px 32px;
+        font-size: 18px;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .hero-content h1 {
+            font-size: 2em;
+        }
+
+        .hero-description {
+            font-size: 1em;
+        }
+
+        .hero-actions {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .customers-preview {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+
+@code {
+    private List<Customer> RecentCustomers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRecentCustomers();
+    }
+
+    private async Task LoadRecentCustomers()
+    {
+        try
+        {
+            var response = await CustomerService.GetCustomersAsync();
+            if (response.Success && response.Data != null)
+            {
+                RecentCustomers = response.Data.OrderByDescending(c => c.CreatedAt).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading recent customers");
+        }
+    }
+
+    private string GetCustomerAvatar(Customer customer)
+    {
+        var firstImage = customer.Images.FirstOrDefault();
+        if (firstImage != null && !string.IsNullOrEmpty(firstImage.Base64Data))
+        {
+            return $"data:{firstImage.ContentType};base64,{firstImage.Base64Data}";
+        }
+        return string.Empty;
+    }
+
+    private string GetInitials(string firstName, string lastName)
+    {
+        return $"{firstName.FirstOrDefault()}{lastName.FirstOrDefault()}".ToUpper();
+    }
+
+    private void NavigateToCustomers()
+    {
+        Navigation.NavigateTo("/customers");
+    }
+
+    private void NavigateToCustomer(int customerId)
+    {
+        Navigation.NavigateTo($"/customer/{customerId}");
+    }
+}

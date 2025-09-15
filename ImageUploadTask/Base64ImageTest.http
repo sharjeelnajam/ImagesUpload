@@ -1,0 +1,51 @@
+### Base64 Image Upload API Tests
+
+### 1. Create a customer first
+POST https://localhost:7000/api/Customer
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "123-456-7890"
+}
+
+### 2. Upload Base64 image (replace with actual Base64 data)
+POST https://localhost:7000/api/Image/upload-base64
+Content-Type: application/json
+
+{
+  "customerId": 1,
+  "base64Data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "fileName": "test-image.png",
+  "contentType": "image/png",
+  "description": "Test Base64 image upload"
+}
+
+### 3. Get customer images (should include Base64 data)
+GET https://localhost:7000/api/Image/customer/1
+
+### 4. Get specific image Base64 data
+GET https://localhost:7000/api/Image/base64/1
+
+### 5. Serve image as file (converts Base64 back to bytes)
+GET https://localhost:7000/api/Image/serve/1
+
+### 6. Get image count for customer
+GET https://localhost:7000/api/Image/count/1
+
+### 7. Upload multiple Base64 images to test 10 image limit
+POST https://localhost:7000/api/Image/upload-base64
+Content-Type: application/json
+
+{
+  "customerId": 1,
+  "base64Data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "fileName": "test-image-2.png",
+  "contentType": "image/png",
+  "description": "Second test image"
+}
+
+### 8. Delete an image
+DELETE https://localhost:7000/api/Image/1

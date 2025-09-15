@@ -82,6 +82,49 @@ namespace ImageUploadTask.Controllers
         }
 
         /// <summary>
+        /// Upload Base64 image data for a customer
+        /// </summary>
+        /// <param name="request">The Base64 upload request</param>
+        /// <returns>Uploaded image response</returns>
+        [HttpPost("upload-base64")]
+        public async Task<ActionResult<ApiResponse<ImageResponse>>> UploadBase64Image(
+            [FromBody] Base64ImageUploadRequest request)
+        {
+            try
+            {
+                if (request == null)
+                {
+                    return BadRequest(ApiResponse<ImageResponse>.ErrorResult("Request body is required"));
+                }
+
+                var uploadedImage = await _imageService.UploadBase64ImageAsync(
+                    request.CustomerId, 
+                    request.Base64Data, 
+                    request.FileName, 
+                    request.ContentType, 
+                    request.Description);
+
+                if (uploadedImage != null)
+                {
+                    return Ok(ApiResponse<ImageResponse>.SuccessResult(
+                        MapToImageResponse(uploadedImage), 
+                        "Base64 image uploaded successfully"));
+                }
+                else
+                {
+                    return BadRequest(ApiResponse<ImageResponse>.ErrorResult(
+                        "Failed to upload Base64 image"));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading Base64 image for customer {CustomerId}", request?.CustomerId);
+                return StatusCode(500, ApiResponse<ImageResponse>.ErrorResult(
+                    "An error occurred while uploading Base64 image"));
+            }
+        }
+
+        /// <summary>
         /// Get all images for a customer
         /// </summary>
         /// <param name="customerId">The customer ID</param>
@@ -171,7 +214,7 @@ namespace ImageUploadTask.Controllers
         }
 
         /// <summary>
-        /// Serve an image file
+        /// Serve an image file as Base64
         /// </summary>
         /// <param name="imageId">The image ID</param>
         /// <returns>The image file</returns>
@@ -186,18 +229,61 @@ namespace ImageUploadTask.Controllers
                     return NotFound();
                 }
 
-                if (!System.IO.File.Exists(image.FilePath))
+                if (string.IsNullOrEmpty(image.Base64Data))
                 {
-                    return NotFound("Image file not found on disk");
+                    return NotFound("Image data not found in database");
                 }
 
-                var fileBytes = await System.IO.File.ReadAllBytesAsync(image.FilePath);
+                // Convert Base64 back to bytes
+                var fileBytes = Convert.FromBase64String(image.Base64Data);
                 return File(fileBytes, image.ContentType, image.FileName);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error serving image {ImageId}", imageId);
                 return StatusCode(500, "An error occurred while serving the image");
+            }
+        }
+
+        /// <summary>
+        /// Get Base64 data for an image
+        /// </summary>
+        /// <param name="imageId">The image ID</param>
+        /// <returns>Base64 data response</returns>
+        [HttpGet("base64/{imageId}")]
+        public async Task<ActionResult<ApiResponse<object>>> GetImageBase64(int imageId)
+        {
+            try
+            {
+                var image = await _imageService.GetImageByIdAsync(imageId);
+                if (image == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResult($"Image {imageId} not found"));
+                }
+
+                if (string.IsNullOrEmpty(image.Base64Data))
+                {
+                    return NotFound(ApiResponse<object>.ErrorResult("Image data not found in database"));
+                }
+
+                var result = new
+                {
+                    Id = image.Id,
+                    CustomerId = image.CustomerId,
+                    FileName = image.FileName,
+                    ContentType = image.ContentType,
+                    FileSizeBytes = image.FileSizeBytes,
+                    Base64Data = image.Base64Data,
+                    DataUrl = $"data:{image.ContentType};base64,{image.Base64Data}"
+                };
+
+                return Ok(ApiResponse<object>.SuccessResult(result, "Base64 data retrieved successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting Base64 data for image {ImageId}", imageId);
+                return StatusCode(500, ApiResponse<object>.ErrorResult(
+                    "An error occurred while retrieving Base64 data"));
             }
         }
 
@@ -212,6 +298,7 @@ namespace ImageUploadTask.Controllers
                 FileSizeBytes = image.FileSizeBytes,
                 UploadedAt = image.UploadedAt,
                 Description = image.Description,
+                Base64Data = image.Base64Data,
                 FileUrl = Url.Action("ServeImage", "Image", new { imageId = image.Id }, Request.Scheme) ?? string.Empty
             };
         }

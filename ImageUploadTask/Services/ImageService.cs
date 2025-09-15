@@ -67,8 +67,8 @@ namespace ImageUploadTask.Services
                 return null;
             }
 
-            // Validate file size (max 10MB)
-            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+            // Validate file size (max 5MB for Base64 storage to avoid database bloat)
+            const long maxFileSize = 5 * 1024 * 1024; // 5MB
             if (file.Length > maxFileSize)
             {
                 _logger.LogWarning("File size {FileSize} exceeds maximum allowed size {MaxSize}", 
@@ -78,43 +78,32 @@ namespace ImageUploadTask.Services
 
             try
             {
-                // Create uploads directory if it doesn't exist
-                var webRootPath = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                _logger.LogInformation("WebRootPath: {WebRootPath}, Fallback: {Fallback}", 
-                    _environment.WebRootPath, webRootPath);
-                
-                var uploadsDir = Path.Combine(webRootPath, "uploads", customerId.ToString());
-                _logger.LogInformation("Creating uploads directory: {UploadsDir}", uploadsDir);
-                
-                Directory.CreateDirectory(uploadsDir);
-
-                // Generate unique filename
-                var fileExtension = Path.GetExtension(file.FileName);
-                var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
-                var filePath = Path.Combine(uploadsDir, uniqueFileName);
-
-                // Save file
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                // Convert file to Base64
+                string base64Data;
+                using (var memoryStream = new MemoryStream())
                 {
-                    await file.CopyToAsync(stream);
+                    await file.CopyToAsync(memoryStream);
+                    var fileBytes = memoryStream.ToArray();
+                    base64Data = Convert.ToBase64String(fileBytes);
                 }
 
-                // Create database record
+                // Create database record with Base64 data
                 var customerImage = new CustomerImage
                 {
                     CustomerId = customerId,
                     FileName = file.FileName,
-                    FilePath = filePath,
+                    FilePath = null, // No longer storing file path since we're using Base64
                     ContentType = file.ContentType,
                     FileSizeBytes = file.Length,
                     Description = description,
+                    Base64Data = base64Data,
                     UploadedAt = DateTime.UtcNow
                 };
 
                 _context.CustomerImages.Add(customerImage);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Successfully uploaded image {ImageId} for customer {CustomerId}", 
+                _logger.LogInformation("Successfully uploaded image {ImageId} for customer {CustomerId} as Base64", 
                     customerImage.Id, customerId);
 
                 return customerImage;
@@ -145,13 +134,7 @@ namespace ImageUploadTask.Services
                     return false;
                 }
 
-                // Delete physical file
-                if (File.Exists(image.FilePath))
-                {
-                    File.Delete(image.FilePath);
-                }
-
-                // Delete database record
+                // Delete database record (no physical file to delete since we're using Base64)
                 _context.CustomerImages.Remove(image);
                 await _context.SaveChangesAsync();
 
@@ -172,6 +155,90 @@ namespace ImageUploadTask.Services
             return await _context.CustomerImages
                 .Include(img => img.Customer)
                 .FirstOrDefaultAsync(img => img.Id == imageId);
+        }
+
+        public async Task<CustomerImage?> UploadBase64ImageAsync(int customerId, string base64Data, string fileName, string contentType, string? description = null)
+        {
+            // Check if customer exists
+            var customer = await _context.Customers.FindAsync(customerId);
+            if (customer == null)
+            {
+                _logger.LogWarning("Customer with ID {CustomerId} not found", customerId);
+                return null;
+            }
+
+            // Check image limit
+            if (!await CanAddImageAsync(customerId))
+            {
+                _logger.LogWarning("Customer {CustomerId} has reached the maximum limit of {MaxImages} images", 
+                    customerId, MAX_IMAGES_PER_CUSTOMER);
+                return null;
+            }
+
+            // Validate Base64 data
+            if (string.IsNullOrEmpty(base64Data))
+            {
+                _logger.LogWarning("No Base64 data provided for upload");
+                return null;
+            }
+
+            // Validate content type
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+            if (!allowedTypes.Contains(contentType.ToLower()))
+            {
+                _logger.LogWarning("Invalid content type: {ContentType}", contentType);
+                return null;
+            }
+
+            try
+            {
+                // Validate Base64 format and get size
+                byte[] fileBytes;
+                try
+                {
+                    fileBytes = Convert.FromBase64String(base64Data);
+                }
+                catch (FormatException)
+                {
+                    _logger.LogWarning("Invalid Base64 format provided");
+                    return null;
+                }
+
+                // Validate file size (max 5MB for Base64 storage)
+                const long maxFileSize = 5 * 1024 * 1024; // 5MB
+                if (fileBytes.Length > maxFileSize)
+                {
+                    _logger.LogWarning("File size {FileSize} exceeds maximum allowed size {MaxSize}", 
+                        fileBytes.Length, maxFileSize);
+                    return null;
+                }
+
+                // Create database record with Base64 data
+                var customerImage = new CustomerImage
+                {
+                    CustomerId = customerId,
+                    FileName = fileName,
+                    FilePath = string.Empty, // No file path since we're using Base64
+                    ContentType = contentType,
+                    FileSizeBytes = fileBytes.Length,
+                    Description = description,
+                    Base64Data = base64Data,
+                    UploadedAt = DateTime.UtcNow
+                };
+
+                _context.CustomerImages.Add(customerImage);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Successfully uploaded Base64 image {ImageId} for customer {CustomerId}", 
+                    customerImage.Id, customerId);
+
+                return customerImage;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading Base64 image for customer {CustomerId}", customerId);
+                return null;
+            }
         }
     }
 }

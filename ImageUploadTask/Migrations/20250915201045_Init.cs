@@ -41,7 +41,8 @@ namespace ImageUploadTask.Migrations
                     ContentType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     FileSizeBytes = table.Column<long>(type: "bigint", nullable: false),
                     UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Base64Data = table.Column<string>(type: "NVARCHAR(MAX)", nullable: true)
                 },
                 constraints: table =>
                 {
