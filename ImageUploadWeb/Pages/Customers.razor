@@ -510,14 +510,6 @@
         await LoadCustomers();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Refresh data when page first renders
-            await LoadCustomers();
-        }
-    }
 
     private async Task LoadCustomers()
     {

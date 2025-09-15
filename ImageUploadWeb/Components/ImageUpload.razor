@@ -248,8 +248,6 @@
                     Description = $"Uploaded on {DateTime.Now:yyyy-MM-dd HH:mm}"
                 };
 
-                Logger.LogInformation("Uploading image for customer {CustomerId}, file: {FileName}, size: {Size} bytes", 
-                    CustomerId, file.Name, base64Data.Length);
 
                 var uploadResponse = await ImageService.UploadBase64ImageAsync(uploadRequest);
 

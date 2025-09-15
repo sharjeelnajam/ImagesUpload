@@ -46,8 +46,7 @@ namespace ImageUploadWeb.Services
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Upload failed with status {StatusCode}: {Error}. Request: CustomerId={CustomerId}, FileName={FileName}, ContentType={ContentType}", 
-                        response.StatusCode, errorContent, request.CustomerId, request.FileName, request.ContentType);
+                    _logger.LogError("Upload failed with status {StatusCode}: {Error}", response.StatusCode, errorContent);
                     return ApiResponse<CustomerImage>.ErrorResult($"Upload failed: {response.StatusCode} - {errorContent}");
                 }
             }

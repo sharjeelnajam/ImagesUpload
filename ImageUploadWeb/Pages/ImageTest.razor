@@ -2,29 +2,42 @@
 @using ImageUploadWeb.Models
 @using ImageUploadWeb.Services
 @using ImageUploadWeb.Components
-@inject IImageService ImageService
 @inject ICustomerService CustomerService
+@inject IImageService ImageService
 @inject ILogger<ImageTest> Logger
 
-<PageTitle>Image Upload Test</PageTitle>
+<PageTitle>Image Upload</PageTitle>
 
-<div class="test-page">
-    <h1>Image Upload Test Page</h1>
-    <p>This page demonstrates the image upload and gallery functionality.</p>
+<div class="image-upload-page">
+    <div class="page-header">
+        <h1>Image Upload</h1>
+        <p>Upload and manage customer images</p>
+    </div>
 
     @if (IsLoading)
     {
-        <div class="loading">
+        <div class="loading-container">
             <div class="spinner"></div>
-            <p>Loading test data...</p>
+            <p>Loading customers...</p>
+        </div>
+    }
+    else if (!Customers.Any())
+    {
+        <div class="no-customers">
+            <div class="no-customers-icon">👥</div>
+            <h3>No customers found</h3>
+            <p>Please add some customers first to upload images.</p>
+            <button class="btn btn-primary" @onclick="NavigateToCustomers">
+                Go to Customers
+            </button>
         </div>
     }
     else
     {
-        <div class="test-sections">
-            <!-- Test Customer Selection -->
-            <div class="test-section">
-                <h3>Select Test Customer</h3>
+        <div class="upload-sections">
+            <!-- Customer Selection -->
+            <div class="upload-section">
+                <h3>Select Customer</h3>
                 <div class="customer-selector">
                     <select @onchange="OnCustomerSelected" class="form-control">
                         <option value="">-- Select a customer --</option>
@@ -38,40 +51,21 @@
 
             @if (SelectedCustomerId > 0)
             {
-                <!-- Image Upload Test -->
-                <div class="test-section">
-                    <h3>Simple Image Upload</h3>
-                    <p><strong>Instructions:</strong> Click the file input below to select multiple images. Supports JPEG, PNG, GIF, and WebP formats up to 5MB each.</p>
+                <!-- Image Upload -->
+                <div class="upload-section">
+                    <h3>Upload Images</h3>
+                    <p>Select multiple images to upload. Supports JPEG, PNG, GIF, and WebP formats up to 5MB each.</p>
                     
                     <ImageUpload CustomerId="@SelectedCustomerId" 
                                 OnImagesUploaded="OnImagesUploaded" 
                                 OnImageCountChanged="OnImageCountChanged" />
                 </div>
 
-                <!-- Image Gallery Test -->
-                <div class="test-section">
-                    <h3>Image Gallery Test</h3>
-                    <ImageGallery Images="@CustomerImages" 
-                                 OnImageDeleted="OnImageDeleted" />
-                </div>
-
-                <!-- Test Results -->
-                <div class="test-section">
-                    <h3>Test Results</h3>
-                    <div class="test-results">
-                        <div class="result-item">
-                            <strong>Customer ID:</strong> @SelectedCustomerId
-                        </div>
-                        <div class="result-item">
-                            <strong>Image Count:</strong> @ImageCount / 10
-                        </div>
-                        <div class="result-item">
-                            <strong>Can Add More:</strong> @(ImageCount < 10 ? "Yes" : "No")
-                        </div>
-                        <div class="result-item">
-                            <strong>Last Upload:</strong> @(LastUploadTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "None")
-                        </div>
-                    </div>
+                <!-- Image Gallery -->
+                <div class="upload-section">
+                    <h3>Uploaded Images</h3>
+                <ImageGallery Images="@CustomerImages" 
+                            OnImageDeleted="OnImageDeleted" />
                 </div>
             }
         </div>
@@ -79,29 +73,36 @@
 </div>
 
 <style>
-    .test-page {
+    .image-upload-page {
         max-width: 1200px;
         margin: 0 auto;
         padding: 20px;
     }
 
-    .test-page h1 {
-        color: #333;
-        margin-bottom: 10px;
-    }
-
-    .test-page p {
-        color: #666;
+    .page-header {
+        text-align: center;
         margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #dee2e6;
     }
 
-    .loading {
+    .page-header h1 {
+        margin: 0 0 10px 0;
+        color: #333;
+    }
+
+    .page-header p {
+        margin: 0;
+        color: #666;
+        font-size: 1.1em;
+    }
+
+    .loading-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 60px 20px;
-        text-align: center;
+        padding: 40px;
     }
 
     .spinner {
@@ -119,35 +120,63 @@
         100% { transform: rotate(360deg); }
     }
 
-    .test-sections {
+    .no-customers {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .no-customers-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+
+    .no-customers h3 {
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    .no-customers p {
+        color: #666;
+        margin-bottom: 30px;
+    }
+
+    .upload-sections {
         display: flex;
         flex-direction: column;
         gap: 30px;
     }
 
-    .test-section {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
+    .upload-section {
+        background: white;
         border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    .test-section h3 {
+    .upload-section h3 {
         margin: 0 0 15px 0;
         color: #333;
-        font-size: 1.2em;
+        font-size: 1.3em;
+    }
+
+    .upload-section p {
+        margin: 0 0 20px 0;
+        color: #666;
+        line-height: 1.5;
     }
 
     .customer-selector {
-        max-width: 300px;
+        max-width: 400px;
     }
 
     .form-control {
         width: 100%;
-        padding: 8px 12px;
+        padding: 10px 15px;
         border: 1px solid #ced4da;
         border-radius: 4px;
-        font-size: 14px;
+        font-size: 1em;
+        background-color: white;
     }
 
     .form-control:focus {
@@ -156,29 +185,33 @@
         box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
     }
 
-    .test-results {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.3s ease;
     }
 
-    .result-item {
-        background: white;
-        padding: 15px;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
     }
 
-    .result-item strong {
-        color: #333;
-        display: block;
-        margin-bottom: 5px;
+    .btn-primary:hover {
+        background-color: #0056b3;
     }
 
-    /* Responsive Design */
     @@media (max-width: 768px) {
-        .test-results {
-            grid-template-columns: 1fr;
+        .image-upload-page {
+            padding: 10px;
+        }
+        
+        .upload-section {
+            padding: 20px;
         }
     }
 </style>
@@ -189,7 +222,6 @@
     private int SelectedCustomerId = 0;
     private int ImageCount = 0;
     private bool IsLoading = true;
-    private DateTime? LastUploadTime = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -250,34 +282,23 @@
     {
         try
         {
-            var imagesResponse = await ImageService.GetCustomerImagesAsync(SelectedCustomerId);
-            if (imagesResponse.Success && imagesResponse.Data != null)
+            var response = await ImageService.GetCustomerImagesAsync(SelectedCustomerId);
+            if (response.Success && response.Data != null)
             {
-                CustomerImages = imagesResponse.Data;
-            }
-
-            var countResponse = await ImageService.GetImageCountAsync(SelectedCustomerId);
-            if (countResponse.Success && countResponse.Data != null)
-            {
-                var countData = countResponse.Data;
-                var countProperty = countData.GetType().GetProperty("CurrentCount");
-                if (countProperty != null)
-                {
-                    ImageCount = (int)countProperty.GetValue(countData)!;
-                }
+                CustomerImages = response.Data;
+                ImageCount = CustomerImages.Count;
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error loading customer images for customer {CustomerId}", SelectedCustomerId);
+            Logger.LogError(ex, "Error loading customer images");
         }
     }
 
     private async Task OnImagesUploaded(List<CustomerImage> uploadedImages)
     {
         CustomerImages.AddRange(uploadedImages);
-        LastUploadTime = DateTime.Now;
-        await LoadCustomerImages(); // Refresh to get updated data
+        await LoadCustomerImages(); // Refresh the list
         StateHasChanged();
     }
 
@@ -289,9 +310,18 @@
 
     private async Task OnImageDeleted(CustomerImage deletedImage)
     {
-        CustomerImages.Remove(deletedImage);
-        ImageCount = Math.Max(0, ImageCount - 1);
-        StateHasChanged();
+        if (deletedImage != null)
+        {
+            CustomerImages.Remove(deletedImage);
+            ImageCount = Math.Max(0, ImageCount - 1);
+            StateHasChanged();
+        }
     }
 
+    private void NavigateToCustomers()
+    {
+        // This would navigate to customers page
+        // For now, just refresh the current page
+        StateHasChanged();
+    }
 }
