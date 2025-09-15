@@ -1,0 +1,87 @@
+@ImageUploadTask_HostAddress = https://localhost:7000
+
+### Create a new customer
+POST {{ImageUploadTask_HostAddress}}/api/customer
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "123-456-7890"
+}
+
+### Get all customers
+GET {{ImageUploadTask_HostAddress}}/api/customer
+Accept: application/json
+
+### Get customer by ID
+GET {{ImageUploadTask_HostAddress}}/api/customer/1
+Accept: application/json
+
+### Upload single image for customer
+POST {{ImageUploadTask_HostAddress}}/api/image/upload/1
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+Test image upload
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload multiple images for customer
+POST {{ImageUploadTask_HostAddress}}/api/image/upload/1
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="image1.jpg"
+Content-Type: image/jpeg
+
+< ./image1.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="image2.png"
+Content-Type: image/png
+
+< ./image2.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+Multiple image upload test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Get all images for a customer
+GET {{ImageUploadTask_HostAddress}}/api/image/customer/1
+Accept: application/json
+
+### Get image count for a customer
+GET {{ImageUploadTask_HostAddress}}/api/image/count/1
+Accept: application/json
+
+### Serve an image file
+GET {{ImageUploadTask_HostAddress}}/api/image/serve/1
+Accept: image/*
+
+### Delete an image
+DELETE {{ImageUploadTask_HostAddress}}/api/image/1
+Accept: application/json
+
+### Update customer
+PUT {{ImageUploadTask_HostAddress}}/api/customer/1
+Content-Type: application/json
+
+{
+  "id": 1,
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe.updated@example.com",
+  "phone": "123-456-7890"
+}
+
+### Delete customer and all images
+DELETE {{ImageUploadTask_HostAddress}}/api/customer/1
+Accept: application/json
